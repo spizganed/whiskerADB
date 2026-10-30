@@ -1,6 +1,6 @@
-# pp
+# whiskerADB
 
-A small adb wrapper for an Android phone that a person also uses. Every input command first checks that your app is in front and stops if it is not.
+`pp` is a small adb wrapper for an Android phone that a person also uses. Every input command first checks that your app is in front and stops if it is not.
 
 ```sh
 export PATH="$PWD/bin:$PATH"
