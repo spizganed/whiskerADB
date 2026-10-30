@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# pp: drive an Android phone through adb, with safety checks for a phone that a person also uses.
+#   pp front                 exit 0 when the app is in front
+#   pp open                  bring the app forward
+#   pp texts                 list the visible texts
+#   pp tap "label"           tap a node by its text or description (only when the app is in front)
+#   pp wait "text" [secs]    wait until a text shows (default 20 s)
+#   pp go "label" "text" [s] tap, then wait for a text
+#   pp type "text"           put text into the focused field through the clipboard (no keyboard glitches)
+#   pp key NAME              send a key: enter, back, del, paste
+#   pp shot [file]           screenshot to a file (default $PP_OUT/shot.png), prints the path
+#   pp swipe x1 y1 x2 y2     swipe, only when the app is in front
+#   pp audit                 list targets under 48 dp and controls without a label (no image, no model)
+#   pp compare A.png B.png   print the screen regions that differ
+#   pp states [file]         shot of the screen in light, dark and 200% text, joined in one image; restores the settings
+# Set PP_PKG to the app id (required). Every input command refuses to act when another app is in front.
+PKG=${PP_PKG:?pp: set PP_PKG to the app id, for example PP_PKG=com.example.app}
+HERE=$(dirname "$(readlink -f "$0")")
+OUT=${PP_OUT:-${TMPDIR:-/tmp}/pp}
+mkdir -p "$OUT"
+
+front() { adb shell dumpsys activity activities | command grep -q "topResumedActivity.*$PKG/"; }
+need_front() { front || { echo "pp: $PKG is not in front" >&2; exit 10; }; }
+dump() { adb shell uiautomator dump /sdcard/pp.xml >/dev/null 2>&1; adb shell cat /sdcard/pp.xml; }
+
+cmd=$1; shift
+case "$cmd" in
+  front) front ;;
+  open) adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 ;;
+  texts) dump | python3 "$HERE/../lib/find.py" texts ;;
+  tap)
+    need_front
+    xy=$(dump | python3 "$HERE/../lib/find.py" tap "$1")
+    [ -n "$xy" ] || { echo "pp: no node: $1" >&2; exit 2; }
+    adb shell input tap $xy ;;
+  wait)
+    end=$((SECONDS + ${2:-20}))
+    while [ $SECONDS -lt $end ]; do
+      dump | python3 "$HERE/../lib/find.py" has "$1" && exit 0
+      sleep 1
+    done
+    echo "pp: timed out waiting for: $1" >&2; exit 3 ;;
+  go)
+    bash "$0" tap "$1" || exit $?
+    bash "$0" wait "$2" "${3:-20}" ;;
+  type)
+    need_front
+    if command -v termux-clipboard-set >/dev/null; then
+      printf '%s' "$1" | termux-clipboard-set
+      adb shell input keyevent 279 # KEYCODE_PASTE
+    else
+      # No termux-api here (the app's Linux system): the keyboard layer. Spaces need %s, and some characters are lost.
+      echo "pp: no termux-api: typing through the keyboard" >&2
+      adb shell input text "$(printf '%s' "$1" | sed 's/ /%s/g')"
+    fi ;;
+  key)
+    need_front
+    case "$1" in enter) k=66;; back) k=4;; del) k=67;; paste) k=279;; *) k=$1;; esac
+    adb shell input keyevent "$k" ;;
+  shot)
+    need_front
+    f=${1:-$OUT/shot.png}
+    # A sleeping screen keeps the last frame: screencap then shows an old picture. Wake it and let it draw.
+    adb shell input keyevent 224    # KEYCODE_WAKEUP
+    sleep 0.6
+    adb exec-out screencap -p > "$f" && echo "$f" ;;
+  swipe)
+    need_front
+    adb shell input swipe "$@" ;;
+  audit)
+    need_front
+    d=$(adb shell wm density | command grep -o '[0-9]*$' | tail -1)
+    dump | python3 "$HERE/../lib/ui.py" audit "${d:-420}" ;;
+  compare) python3 "$HERE/../lib/ui.py" compare "$1" "$2" ;;
+  states)
+    need_front
+    f=${1:-$OUT/states.png}
+    night=$(adb shell cmd uimode night | command grep -o 'yes\|no\|auto' | head -1)
+    scale=$(adb shell settings get system font_scale)
+    restore() { adb shell cmd uimode night "${night:-auto}" >/dev/null; adb shell settings put system font_scale "${scale:-1.0}" >/dev/null; }
+    trap restore EXIT
+    shots=""
+    for s in "no 1.0" "yes 1.0" "no 2.0"; do
+      set -- $s
+      adb shell cmd uimode night "$1" >/dev/null
+      adb shell settings put system font_scale "$2" >/dev/null
+      sleep 2
+      bash "$0" shot "$OUT/state-$1-$2.png" >/dev/null || exit $?
+      shots="$shots $OUT/state-$1-$2.png"
+    done
+    python3 "$HERE/../lib/ui.py" sheet "$f" $shots ;;
+  *) sed -n '2,16p' "$0"; exit 1 ;;
+esac
