@@ -15,6 +15,7 @@ pp texts                      # the visible texts, one per line
 pp shot                       # screenshot, prints the path
 pp audit                      # targets under 48 dp and controls without a label: no image, no model
 pp compare a.png b.png        # print the screen regions that differ
+pp init                       # add a short pp block to AGENTS.md and CLAUDE.md in this folder
 pp states                     # light, dark and 200% text in one image; the settings come back after
 ```
 

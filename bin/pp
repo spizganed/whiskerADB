@@ -12,6 +12,7 @@
 #   pp swipe x1 y1 x2 y2     swipe, only when the app is in front
 #   pp audit                 list targets under 48 dp and controls without a label (no image, no model)
 #   pp compare A.png B.png   print the screen regions that differ
+#   pp init                  add a short pp block to AGENTS.md and CLAUDE.md in this folder
 #   pp states [file]         shot of the screen in light, dark and 200% text, joined in one image; restores the settings
 # Set PP_PKG to the app id (required). Every input command refuses to act when another app is in front.
 PKG=${PP_PKG:?pp: set PP_PKG to the app id, for example PP_PKG=com.example.app}
@@ -71,6 +72,7 @@ case "$cmd" in
     need_front
     d=$(adb shell wm density | command grep -o '[0-9]*$' | tail -1)
     dump | python3 "$HERE/../lib/ui.py" audit "${d:-420}" ;;
+  init) python3 "$HERE/../lib/init.py" ;;
   compare) python3 "$HERE/../lib/ui.py" compare "$1" "$2" ;;
   states)
     need_front
@@ -89,5 +91,5 @@ case "$cmd" in
       shots="$shots $OUT/state-$1-$2.png"
     done
     python3 "$HERE/../lib/ui.py" sheet "$f" $shots ;;
-  *) sed -n '2,16p' "$0"; exit 1 ;;
+  *) sed -n '2,17p' "$0"; exit 1 ;;
 esac
