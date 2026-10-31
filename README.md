@@ -23,6 +23,8 @@ pp states                     # light, dark and 200% text in one image; the sett
 - `compare` and `states` need python3 with PIL.
 - `states` changes the dark mode and font scale of the whole phone for about 10 s. It restores both on exit. Run it only when you are not using the phone.
 - `type` uses the clipboard through `termux-clipboard-set` (Termux:API). Without it, `pp` falls back to `adb shell input text`, which can drop characters.
+- `tap` checks only the app in front. A floating chat bubble of another app (Android bubbles) lies over it and takes a tap at its spot. Move the bubble, or tap by coordinates away from it.
+- Tap a text field itself, not its hint text, before `type`: a tap on the hint can leave the field without focus.
 - Set `PP_OUT` for the screenshot folder.
 
 Needs `adb`, `python3` and a connected phone.
