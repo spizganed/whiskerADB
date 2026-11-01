@@ -29,4 +29,4 @@ Steps (the test tool is `VD2.java` in this folder):
 
 - Battery: power group 1 stays awake, so the phone does not doze while the display exists. Measure the drain.
 - Android 14 to 16: `OWN_DISPLAY_GROUP` may work there as it is (no separate timeouts). Not tested.
-- `pp display hidden` still uses scrcpy-server. Next step: a `pp display locked` (or a new hidden mode) with this tool, and a screenshot path (`screencap -d` with the SurfaceFlinger id).
+- Done: `pp display locked` uses this tool (`lib/locked/`). Rebuild the dex after a change: `javac -cp android.jar`, then `d8 --min-api 34 --output lib/locked`.

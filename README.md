@@ -78,7 +78,7 @@ pp shot                          # take a screenshot; prints the file path
 | `pp shot [file]` | Screenshot. Wakes the screen first. Prints the file path. |
 | `pp audit` | List touch targets under 48 dp and controls with no label. |
 | `pp compare a.png b.png` | Print the screen regions that differ between two screenshots. |
-| `pp display overlay\|hidden\|off` | Work on a second display, so the person keeps the phone screen. See below. |
+| `pp display overlay\|hidden\|locked\|off` | Work on a second display, so the person keeps the phone screen. See below. |
 | `pp states [file]` | One image of the screen in light mode, dark mode and 200% text. |
 | `pp init` | Add a short `pp` block to `AGENTS.md` and `CLAUDE.md` in the current folder, so an agent knows the tool. |
 
@@ -94,7 +94,8 @@ After `pp display overlay` or `pp display hidden`, `open`, `texts`, `tap`, `type
 
 - `overlay`: Android's own simulated display. No download. A small preview window floats over the phone screen.
 - `hidden`: no window. `open`, `texts`, `tap`, `swipe` and `shot` work. It has no keyboard, so `pp type` types nothing: send text through the app (for example `pt send`). Tested on Android 17.
-- With the phone locked, the hidden display stops: the app has no activity and `shot` is black (tested on Android 17). It comes back after the unlock. A display of a virtual device keeps working while locked: see `research/LOCKED-DISPLAY.md`.
+- With the phone locked, the hidden display stops: the app has no activity and `shot` is black (tested on Android 17). It comes back after the unlock.
+- `locked`: no window, and it keeps working while the phone is locked. It is a display of a virtual device, with its own power group: the power button sleeps only the phone screen. It makes a companion association for the adb shell once. No keyboard, as `hidden`. Android 14 and newer. Why and how: `research/LOCKED-DISPLAY.md`.
 - Each call is tested on Android 16. `pp states` and `pp audit` still use the phone screen.
 
 ### `pp states`: light, dark and large text in one image

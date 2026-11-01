@@ -15,9 +15,10 @@
 #   pp audit                 list targets under 48 dp and controls without a label (no image, no model)
 #   pp compare A.png B.png   print the screen regions that differ
 #   pp init                  add a short pp block to AGENTS.md and CLAUDE.md in this folder
-#   pp display overlay|hidden|off   work on a second display, so the phone screen stays free; off returns to the phone screen
+#   pp display overlay|hidden|locked|off   work on a second display, so the phone screen stays free; off returns to the phone screen
 #                            overlay: a small preview window floats over the phone screen. No extra download.
 #                            hidden: no window at all. Needs node and downloads scrcpy-server (0.7 MB) once.
+#                            locked: no window, and it keeps working while the phone is locked (Android 14+, a virtual device).
 #   pp states [file]         shot of the screen in light, dark and 200% text, joined in one image; restores the settings
 # With a display on, open, texts, tap, type, key, shot and swipe act on that display, not on the phone screen.
 # Set PP_PKG to the app id (required). Every input command refuses to act when another app is in front.
@@ -92,11 +93,42 @@ case "$cmd" in
         echo $! > "$OUT/hidden.pid"
         for _ in $(seq 40); do [ -s "$OUT/display" ] && { echo "display $(cat "$OUT/display")"; exit 0; }; sleep 1; done
         echo "pp: the hidden display did not start (see $OUT/hidden.log)" >&2; exit 4 ;;
+      locked)
+        # A display of a virtual device has its own display group and power group: the power button sleeps only the
+        # phone screen. The virtual device needs a companion association of the shell with a device profile.
+        mac=02:00:00:70:70:6c
+        assoc() { adb shell cmd companiondevice list 0 | tr -d '\r' | command grep -i "com.android.shell.*$mac" | command grep -o 'mId=[0-9]*' | head -1 | cut -d= -f2; }
+        id=$(assoc)
+        if [ -z "$id" ]; then
+          adb shell cmd companiondevice associate 0 com.android.shell "$mac" android.app.role.COMPANION_DEVICE_APP_STREAMING >/dev/null
+          id=$(assoc)
+        fi
+        [ -n "$id" ] || { echo "pp: could not make the companion association" >&2; exit 4; }
+        adb push "$HERE/../lib/locked/classes.dex" /data/local/tmp/pp-locked.dex >/dev/null 2>&1
+        size=${2:-1080x2400/420}; w=${size%%x*}; rest=${size#*x}; h=${rest%%/*}; dpi=${size##*/}
+        rm -f "$OUT/display" "$OUT/display.sf"
+        # Flags 0x1449: public, own content only, touch, trusted, always unlocked.
+        nohup adb shell "CLASSPATH=/data/local/tmp/pp-locked.dex exec app_process / LockedDisplay $id $w $h $dpi 1449" >"$OUT/locked.log" 2>&1 &
+        echo $! > "$OUT/locked.pid"
+        for _ in $(seq 30); do
+          d=$(command grep -o '^display [0-9]*' "$OUT/locked.log" 2>/dev/null | command grep -o '[0-9]*')
+          if [ -n "$d" ]; then
+            sf=$(adb shell dumpsys SurfaceFlinger --display-id | command grep 'displayName="meowtty-vd"' | command grep -o '^Display [0-9]*' | command grep -o '[0-9]*' | head -1)
+            [ -n "$sf" ] || { echo "pp: no SurfaceFlinger id for display $d" >&2; exit 4; }
+            echo "$d" > "$OUT/display"; echo "$sf" > "$OUT/display.sf"; echo "display $d"; exit 0
+          fi
+          sleep 1
+        done
+        echo "pp: the locked display did not start (see $OUT/locked.log)" >&2; exit 4 ;;
       off)
         [ -s "$OUT/hidden.pid" ] && kill "$(cat "$OUT/hidden.pid")" 2>/dev/null
+        [ -s "$OUT/locked.pid" ] && kill "$(cat "$OUT/locked.pid")" 2>/dev/null
+        # Without a terminal the device side does not end with adb: end it by name. The virtual device and its display go with it.
+        adb shell pkill -f LockedDisplay 2>/dev/null
+        rm -f "$OUT/locked.pid"
         adb shell settings delete global overlay_display_devices >/dev/null
         rm -f "$OUT/display" "$OUT/display.sf" "$OUT/hidden.pid" ;;
-      *) echo "pp: display overlay|hidden|off" >&2; exit 1 ;;
+      *) echo "pp: display overlay|hidden|locked|off" >&2; exit 1 ;;
     esac ;;
   texts) dump | python3 "$HERE/../lib/find.py" texts ;;
   tap)
