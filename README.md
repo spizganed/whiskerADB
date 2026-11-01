@@ -92,6 +92,7 @@ After `pp display overlay` or `pp display hidden`, `open`, `texts`, `tap`, `type
 
 - `overlay`: Android's own simulated display. No download. A small preview window floats over the phone screen.
 - `hidden`: no window. `open`, `texts`, `tap`, `swipe` and `shot` work. It has no keyboard, so `pp type` types nothing: send text through the app (for example `pt send`). Tested on Android 17.
+- With the phone locked, the hidden display stops: the app has no activity and `shot` is black (tested on Android 17). It comes back after the unlock. Keep the phone awake or unlocked while `pp` works.
 - Each call is tested on Android 16. `pp states` and `pp audit` still use the phone screen.
 
 ### `pp states`: light, dark and large text in one image
