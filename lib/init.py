@@ -6,7 +6,7 @@ BEGIN, END = "<!-- whiskerADB: begin -->", "<!-- whiskerADB: end -->"
 BLOCK = f"""{BEGIN}
 ## Android UI checks
 
-To run, tap or check an app on the phone, use `pp`. Run `pp` alone for the commands. Set `PP_PKG` to the app id. Use `pp texts` and `pp audit` before `pp shot`.
+To run, tap or check an app on the phone, use `pp`. Run `pp` alone for the commands. Set `PP_PKG` to the app id. Use `pp texts` and `pp audit` before `pp shot`. Run `pp display hidden` first: the user keeps the phone, and it works while the phone is locked. Run `pp display off` when you finish.
 {END}
 """
 
