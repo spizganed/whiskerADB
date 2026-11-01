@@ -91,7 +91,7 @@ It reads the UI tree and prints one line for each problem (`small` or `nolabel`,
 After `pp display overlay` or `pp display hidden`, `open`, `texts`, `tap`, `type`, `key`, `swipe` and `shot` act on the second display. The phone screen stays free. `pp display off` goes back.
 
 - `overlay`: Android's own simulated display. No download. A small preview window floats over the phone screen.
-- `hidden`: no window. It shows and clicks by screenshot and `input`; reading texts (`pp texts`, `pp tap "label"`) needs the overlay on some phones. It runs `scrcpy-server` (downloaded once, 0.7 MB, to `~/.cache/whiskerADB`) and keeps its video sockets open. It needs `node`. Set `PP_SCRCPY_VERSION` to change the version.
+- `hidden`: no window. `open`, `texts`, `tap`, `swipe` and `shot` work. It has no keyboard, so `pp type` types nothing: send text through the app (for example `pt send`). Tested on Android 17.
 - Each call is tested on Android 16. `pp states` and `pp audit` still use the phone screen.
 
 ### `pp states`: light, dark and large text in one image
