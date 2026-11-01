@@ -73,6 +73,8 @@ pp shot                          # take a screenshot; prints the file path
 | `pp type "text"` | Type into the focused field through the clipboard. |
 | `pp key NAME` | Send a key: `enter`, `back`, `del`, `paste`, or an Android key code number. |
 | `pp swipe x1 y1 x2 y2` | Swipe between two points. Use it to scroll. |
+| `pp scroll down\|up` | Scroll most of one screen in the middle of the screen. |
+| `pp find "label" [n]` | Scroll down until the label shows (at most n screens, default 8). Then `pp tap` it. |
 | `pp shot [file]` | Screenshot. Wakes the screen first. Prints the file path. |
 | `pp audit` | List touch targets under 48 dp and controls with no label. |
 | `pp compare a.png b.png` | Print the screen regions that differ between two screenshots. |

@@ -10,6 +10,8 @@
 #   pp key NAME              send a key: enter, back, del, paste
 #   pp shot [file]           screenshot to a file (default $PP_OUT/shot.png), prints the path
 #   pp swipe x1 y1 x2 y2     swipe, only when the app is in front
+#   pp scroll down|up        scroll the list most of one screen (down shows what is below)
+#   pp find "label" [n]      scroll down until a node with the label shows, at most n screens (default 8); then pp tap it
 #   pp audit                 list targets under 48 dp and controls without a label (no image, no model)
 #   pp compare A.png B.png   print the screen regions that differ
 #   pp init                  add a short pp block to AGENTS.md and CLAUDE.md in this folder
@@ -36,6 +38,17 @@ front() {
   else adb shell dumpsys activity activities | command grep -q "topResumedActivity.*$PKG/"; fi
 }
 need_front() { front || { echo "pp: $PKG is not in front" >&2; exit 10; }; }
+# The size of the screen in use (the second display when one is on): "W H".
+size() {
+  local d=""; [ -n "$DISP" ] && d="-d $DISP"
+  adb shell wm size $d | tr -d '\r' | awk -F': ' '/size/ { s = $2 } END { sub("x", " ", s); print s }'
+}
+# One scroll in the middle of the screen, away from the top bar and the keyboard area.
+scroll() {
+  read -r w h <<< "$(size)"
+  local x=$((w / 2)) lo=$((h * 70 / 100)) hi=$((h * 30 / 100))
+  if [ "$1" = up ]; then adb shell $INPUT swipe $x $hi $x $lo 300; else adb shell $INPUT swipe $x $lo $x $hi 300; fi
+}
 dump() {
   adb shell rm -f /sdcard/pp.xml
   if [ -n "$DISP" ]; then
@@ -126,6 +139,17 @@ case "$cmd" in
   swipe)
     need_front
     adb shell $INPUT swipe "$@" ;;
+  scroll)
+    need_front
+    case "$1" in up|down) scroll "$1" ;; *) echo "pp: scroll down|up" >&2; exit 1 ;; esac ;;
+  find)
+    need_front
+    for _ in $(seq "${2:-8}"); do
+      dump | python3 "$HERE/../lib/find.py" has "$1" && exit 0
+      scroll down; sleep 0.5
+    done
+    dump | python3 "$HERE/../lib/find.py" has "$1" && exit 0
+    echo "pp: no node after scrolling: $1" >&2; exit 2 ;;
   audit)
     need_front
     d=$(adb shell wm density | command grep -o '[0-9]*$' | tail -1)
