@@ -76,6 +76,7 @@ pp shot                          # take a screenshot; prints the file path
 | `pp shot [file]` | Screenshot. Wakes the screen first. Prints the file path. |
 | `pp audit` | List touch targets under 48 dp and controls with no label. |
 | `pp compare a.png b.png` | Print the screen regions that differ between two screenshots. |
+| `pp display overlay\|hidden\|off` | Work on a second display, so the person keeps the phone screen. See below. |
 | `pp states [file]` | One image of the screen in light mode, dark mode and 200% text. |
 | `pp init` | Add a short `pp` block to `AGENTS.md` and `CLAUDE.md` in the current folder, so an agent knows the tool. |
 
@@ -84,6 +85,14 @@ Exit codes: `0` ok, `2` no matching node, `3` wait timed out, `10` your app is n
 ### `pp audit`: accessibility without images
 
 It reads the UI tree and prints one line for each problem (`small` or `nolabel`, with the size and the position), then a count. A problem is a clickable element smaller than 48 dp, or a control with no text or description (a screen reader cannot name it). Fix the app, run it again, and the list gets shorter.
+
+### `pp display`: a second screen for the agent
+
+After `pp display overlay` or `pp display hidden`, `open`, `texts`, `tap`, `type`, `key`, `swipe` and `shot` act on the second display. The phone screen stays free. `pp display off` goes back.
+
+- `overlay`: Android's own simulated display. No download. A small preview window floats over the phone screen.
+- `hidden`: no window. It runs `scrcpy-server` (downloaded once, 0.7 MB, to `~/.cache/whiskerADB`) and keeps its video sockets open. It needs `node`. Set `PP_SCRCPY_VERSION` to change the version.
+- Each call is tested on Android 16. `pp states` and `pp audit` still use the phone screen.
 
 ### `pp states`: light, dark and large text in one image
 
