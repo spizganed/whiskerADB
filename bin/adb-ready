@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # adb-ready: make sure adb has a usable device. A hung adb server shows the device as offline.
 # Restarts the server once when no device is in the "device" state. Exit 1 when none shows up.
+# After a phone restart, adbd listens on no port. adb-ready then looks for the Wireless debugging service of this phone
+# (mDNS), connects, runs `adb tcpip 5555` and connects to localhost:5555. The person only turns Wireless debugging on again.
 # Set ADB_READY_ADDR (for example localhost:5555) to also run `adb connect` to that address after a restart.
 ready() { adb devices 2>/dev/null | awk 'NR>1 && $2=="device"{f=1} END{exit !f}'; }
 ready && exit 0
@@ -8,5 +10,12 @@ adb kill-server >/dev/null 2>&1
 adb start-server >/dev/null 2>&1
 [ -n "$ADB_READY_ADDR" ] && adb connect "$ADB_READY_ADDR" >/dev/null 2>&1
 for _ in 1 2 3 4 5 6 7 8 9 10; do ready && exit 0; sleep 1; done
-echo "adb-ready: no adb device after a server restart" >&2
+# No device: try the Wireless debugging service of this phone (a service on this network or on localhost).
+svc=$(adb mdns services 2>/dev/null | awk '/_adb-tls-connect/ {print $NF; exit}')
+if [ -n "$svc" ]; then
+  adb connect "$svc" >/dev/null 2>&1
+  adb -s "$svc" tcpip 5555 >/dev/null 2>&1 && sleep 2 && adb connect localhost:5555 >/dev/null 2>&1
+  for _ in 1 2 3 4 5; do ready && exit 0; sleep 1; done
+fi
+echo "adb-ready: no adb device. Turn on Wireless debugging (Settings, System, Developer options) and run again." >&2
 exit 1
