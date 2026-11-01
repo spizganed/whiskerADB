@@ -17,6 +17,7 @@
 # Set PP_PKG to the app id (required). Every input command refuses to act when another app is in front.
 PKG=${PP_PKG:?pp: set PP_PKG to the app id, for example PP_PKG=com.example.app}
 HERE=$(dirname "$(readlink -f "$0")")
+"$HERE/adb-ready" || exit 1
 OUT=${PP_OUT:-${TMPDIR:-/tmp}/pp}
 mkdir -p "$OUT"
 
