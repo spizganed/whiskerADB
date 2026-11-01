@@ -18,7 +18,8 @@
 #   pp display overlay|hidden|locked|off   work on a second display, so the phone screen stays free; off returns to the phone screen
 #                            overlay: a small preview window floats over the phone screen. No extra download.
 #                            hidden: no window at all. Needs node and downloads scrcpy-server (0.7 MB) once.
-#                            locked: no window, and it keeps working while the phone is locked (Android 14+, a virtual device).
+#                            hidden works while the phone is locked on Android 14+ (a virtual device). locked: that mode only.
+#   pp locked                exit 0 when the phone is locked (the lock screen shows)
 #   pp states [file]         shot of the screen in light, dark and 200% text, joined in one image; restores the settings
 # With a display on, open, texts, tap, type, key, shot and swipe act on that display, not on the phone screen.
 # Set PP_PKG to the app id (required). Every input command refuses to act when another app is in front.
@@ -38,7 +39,14 @@ front() {
     adb shell dumpsys activity activities | awk -v d="$DISP" '/^Display #/ { on = ($2 == "#" d) } on && /topResumedActivity/ { print; exit }' | command grep -q "$PKG/"
   else adb shell dumpsys activity activities | command grep -q "topResumedActivity.*$PKG/"; fi
 }
-need_front() { front || { echo "pp: $PKG is not in front" >&2; exit 10; }; }
+need_front() {
+  front && return
+  # A locked phone has nothing in front: say so, and name the way out.
+  if [ -z "$DISP" ] && adb shell dumpsys window | command grep -q 'isKeyguardShowing=true'; then
+    echo "pp: the phone is locked. Run pp display hidden: it works while the phone is locked." >&2; exit 11
+  fi
+  echo "pp: $PKG is not in front" >&2; exit 10
+}
 # The size of the screen in use (the second display when one is on): "W H".
 size() {
   local d=""; [ -n "$DISP" ] && d="-d $DISP"
@@ -67,6 +75,7 @@ dump() {
 cmd=$1; shift
 case "$cmd" in
   front) front ;;
+  locked) adb shell dumpsys window | command grep -q 'isKeyguardShowing=true' ;;
   open)
     if [ -n "$DISP" ]; then
       act=$(adb shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$PKG" | tail -1 | tr -d '\r')
@@ -82,6 +91,12 @@ case "$cmd" in
         [ -n "$id" ] && [ -n "$sf" ] || { echo "pp: the overlay display did not start" >&2; exit 4; }
         echo "$id" > "$OUT/display"; echo "$sf" > "$OUT/display.sf"; echo "display $id" ;;
       hidden)
+        # Android 14 and newer: the display of a virtual device, which keeps working while the phone is locked.
+        # It costs nothing extra while the phone is awake. Older Android, or a failed start: scrcpy-server.
+        if [ "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" -ge 34 ] 2>/dev/null; then
+          bash "$0" display locked "${2:-1080x2400/420}" && exit 0
+          echo "pp: the locked display failed; trying scrcpy-server" >&2
+        fi
         ver=${PP_SCRCPY_VERSION:-5.0.1}
         jar=${XDG_CACHE_HOME:-$HOME/.cache}/whiskerADB/scrcpy-server-$ver.jar
         if [ ! -s "$jar" ]; then

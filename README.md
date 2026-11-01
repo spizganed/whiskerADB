@@ -93,8 +93,9 @@ It reads the UI tree and prints one line for each problem (`small` or `nolabel`,
 After `pp display overlay` or `pp display hidden`, `open`, `texts`, `tap`, `type`, `key`, `swipe` and `shot` act on the second display. The phone screen stays free. `pp display off` goes back.
 
 - `overlay`: Android's own simulated display. No download. A small preview window floats over the phone screen.
-- `hidden`: no window. `open`, `texts`, `tap`, `swipe` and `shot` work. It has no keyboard, so `pp type` types nothing: send text through the app (for example `pt send`). Tested on Android 17.
-- With the phone locked, the hidden display stops: the app has no activity and `shot` is black (tested on Android 17). It comes back after the unlock.
+- `hidden`: no window. On Android 14 and newer it is the `locked` display below, so it works with the phone locked too; older Android uses scrcpy-server. `open`, `texts`, `tap`, `swipe` and `shot` work. It has no keyboard, so `pp type` types nothing: send text through the app (for example `pt send`). Tested on Android 17.
+- Was: on Android 17 the scrcpy display stopped with the phone locked. Is: `hidden` uses the `locked` display there.
+- A locked phone and no second display: input commands stop with exit code 11 and say to run `pp display hidden`. `pp locked` exits 0 when the phone is locked.
 - `locked`: no window, and it keeps working while the phone is locked. It is a display of a virtual device, with its own power group: the power button sleeps only the phone screen. It makes a companion association for the adb shell once. No keyboard, as `hidden`. Android 14 and newer. Why and how: `research/LOCKED-DISPLAY.md`.
 - Each call is tested on Android 16. `pp states` and `pp audit` still use the phone screen.
 
