@@ -36,7 +36,19 @@ front() {
   else adb shell dumpsys activity activities | command grep -q "topResumedActivity.*$PKG/"; fi
 }
 need_front() { front || { echo "pp: $PKG is not in front" >&2; exit 10; }; }
-dump() { adb shell uiautomator dump ${DISP:+--display $DISP} /sdcard/pp.xml >/dev/null 2>&1; adb shell cat /sdcard/pp.xml; }
+dump() {
+  adb shell rm -f /sdcard/pp.xml
+  if [ -n "$DISP" ]; then
+    # --display alone can return the phone screen. --windows lists every display: keep the block of ours.
+    adb shell uiautomator dump --windows /sdcard/pp.xml >/dev/null 2>&1
+    xml=$(adb shell cat /sdcard/pp.xml | python3 -c 'import re,sys; m = re.search(r"<display id=\"%s\">(.*?)</display>" % sys.argv[1], sys.stdin.read(), re.S); print(m.group(1) if m else "")' "$DISP")
+    printf '%s' "$xml" | command grep -q "package=\"$PKG\"" || { echo "pp: display $DISP shows no node of $PKG" >&2; return 1; }
+  else
+    adb shell uiautomator dump /sdcard/pp.xml >/dev/null 2>&1
+    xml=$(adb shell cat /sdcard/pp.xml)
+  fi
+  printf '%s' "$xml"
+}
 
 cmd=$1; shift
 case "$cmd" in
