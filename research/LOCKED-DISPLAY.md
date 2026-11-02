@@ -28,6 +28,7 @@ Steps (the test tool is `VD2.java` in this folder):
 ## Open
 
 - Battery: power group 1 stays awake, so the phone does not doze while the display exists. Measure the drain.
-  - Result (2026-11-02, Nothing Phone 3a, locked, unplugged, 20 min runs, Claude Code Haiku in a loop): baseline without display 137, 211 and 234 mAh/h (3 runs). With `pp display hidden` and a `pp` testing task: 634 mAh/h. That is about 3 times the baseline. This includes the `pp` work (screenshots, UI dumps). Open: a run with the display on and an idle agent.
+  - Result (2026-11-02, Nothing Phone 3a, locked, unplugged, 20 min runs, Claude Code Haiku in a loop): baseline without display 137, 211 and 234 mAh/h (3 runs). With `pp display hidden` and a `pp` testing task: 634 mAh/h. That is about 3 times the baseline. This includes the `pp` work (screenshots, UI dumps). Fix: `pp` sleeps the power group of the display after PP_IDLE seconds (default 60) with no pp command, and wakes it at the next command.
+  - C1 (display exists and sleeps, no agent, 10 min) 85 mAh/h. C2 (display awake, no agent, 11 min) 282 mAh/h. The idle sleep of the display group cuts the display cost by about 70 %. C1 is below every baseline run. A git push ran during C2, so C2 is a little high.
 - Android 14 to 16: `OWN_DISPLAY_GROUP` may work there as it is (no separate timeouts). Not tested.
 - Done: `pp display locked` uses this tool (`lib/locked/`). Rebuild the dex after a change: `javac -cp android.jar`, then `d8 --min-api 34 --output lib/locked`.
