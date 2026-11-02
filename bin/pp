@@ -19,6 +19,8 @@
 #                            overlay: a small preview window floats over the phone screen. No extra download.
 #                            hidden: no window at all. Needs node and downloads scrcpy-server (0.7 MB) once.
 #                            hidden works while the phone is locked on Android 14+ (a virtual device). locked: that mode only.
+#                            The display sleeps after PP_IDLE seconds (default 60) with no pp command, so the phone can doze; the next pp command wakes it.
+#                            PP_IDLE=0 keeps it awake. pp display sleep|wake does it by hand.
 #   pp locked                exit 0 when the phone is locked (the lock screen shows)
 #   pp states [file]         shot of the screen in light, dark and 200% text, joined in one image; restores the settings
 # With a display on, open, texts, tap, type, key, shot and swipe act on that display, not on the phone screen.
@@ -33,6 +35,12 @@ mkdir -p "$OUT"
 DISP=${PP_DISPLAY:-$(cat "$OUT/display" 2>/dev/null)}
 SF=$(cat "$OUT/display.sf" 2>/dev/null)
 INPUT="input"; [ -n "$DISP" ] && INPUT="input -d $DISP"
+# The idle watchdog sleeps the display group (a flag file marks it). Any command that is not about the display wakes it
+# and marks the use time. KEYCODE_WAKEUP on the display wakes its power group only, not the phone screen.
+if [ -n "$DISP" ] && [ "$1" != display ]; then
+  woke=$(adb shell "date +%s > /data/local/tmp/pp-last; if [ -e /data/local/tmp/pp-asleep ]; then rm -f /data/local/tmp/pp-asleep; input -d $DISP keyevent KEYCODE_WAKEUP; echo woke; fi" | tr -d '\r')
+  [ "$woke" = woke ] && sleep 1
+fi
 front() {
   if [ -n "$DISP" ]; then
     # The top activity of that display: the lines between "Display #N" and the next display.
@@ -130,7 +138,13 @@ case "$cmd" in
           if [ -n "$d" ]; then
             sf=$(adb shell dumpsys SurfaceFlinger --display-id | command grep 'displayName="meowtty-vd"' | command grep -o '^Display [0-9]*' | command grep -o '[0-9]*' | head -1)
             [ -n "$sf" ] || { echo "pp: no SurfaceFlinger id for display $d" >&2; exit 4; }
-            echo "$d" > "$OUT/display"; echo "$sf" > "$OUT/display.sf"; echo "display $d"; exit 0
+            echo "$d" > "$OUT/display"; echo "$sf" > "$OUT/display.sf"
+            # The watchdog runs on the phone, so no adb traffic keeps the phone awake. PP_IDLE=0: no watchdog.
+            idle=${PP_IDLE:-60}
+            if [ "$idle" -gt 0 ]; then
+              adb shell "rm -f /data/local/tmp/pp-asleep; date +%s > /data/local/tmp/pp-last; nohup sh -c 'echo \$\$ > /data/local/tmp/pp-idle.pid; while sleep 10; do last=\$(cat /data/local/tmp/pp-last 2>/dev/null || echo 0); now=\$(date +%s); if [ \$((now - last)) -gt $idle ] && [ ! -e /data/local/tmp/pp-asleep ]; then cmd power sleep --display-id $d >/dev/null 2>&1; : > /data/local/tmp/pp-asleep; fi; done' >/dev/null 2>&1 &"
+            fi
+            echo "display $d"; exit 0
           fi
           sleep 1
         done
@@ -140,10 +154,15 @@ case "$cmd" in
         [ -s "$OUT/locked.pid" ] && kill "$(cat "$OUT/locked.pid")" 2>/dev/null
         # Without a terminal the device side does not end with adb: end it by name. The virtual device and its display go with it.
         adb shell pkill -f LockedDisplay 2>/dev/null
+        adb shell 'kill $(cat /data/local/tmp/pp-idle.pid) 2>/dev/null; rm -f /data/local/tmp/pp-idle.pid /data/local/tmp/pp-asleep /data/local/tmp/pp-last' 2>/dev/null
         rm -f "$OUT/locked.pid"
         adb shell settings delete global overlay_display_devices >/dev/null
         rm -f "$OUT/display" "$OUT/display.sf" "$OUT/hidden.pid" ;;
-      *) echo "pp: display overlay|hidden|locked|off" >&2; exit 1 ;;
+      sleep) [ -n "$DISP" ] || { echo "pp: no display is on" >&2; exit 1; }
+        adb shell "cmd power sleep --display-id $DISP >/dev/null 2>&1; : > /data/local/tmp/pp-asleep" ;;
+      wake) [ -n "$DISP" ] || { echo "pp: no display is on" >&2; exit 1; }
+        adb shell "date +%s > /data/local/tmp/pp-last; rm -f /data/local/tmp/pp-asleep; input -d $DISP keyevent KEYCODE_WAKEUP" ;;
+      *) echo "pp: display overlay|hidden|locked|sleep|wake|off" >&2; exit 1 ;;
     esac ;;
   texts) dump | python3 "$HERE/../lib/find.py" texts ;;
   tap)
