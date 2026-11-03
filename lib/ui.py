@@ -20,20 +20,41 @@ def nodes(xml):
             yield g("text"), g("content-desc"), g("class"), g("clickable") == "true", tuple(map(int, b.groups()))
 
 
+def label(node):
+    """The text of a control: its own, else the first text of a child that is not a control itself.
+    Compose puts the text of a button on a child node; TalkBack reads it as the label of the button."""
+    own = node.get("text") or node.get("content-desc")
+    if own:
+        return own
+    for child in node:
+        if child.get("clickable") != "true":
+            t = label(child)
+            if t:
+                return t
+    return ""
+
+
 def audit(density):
+    import xml.etree.ElementTree as ET
     scale = density / 160
-    xml = sys.stdin.read()
+    raw = sys.stdin.read()
+    # A display dump is a fragment (one block per window): wrap it in one root.
+    root = ET.fromstring("<r>" + re.sub(r"<\?xml[^>]*\?>", "", raw).strip() + "</r>")
     found = 0
-    for text, desc, cls, click, (x1, y1, x2, y2) in nodes(xml):
-        if not click:
+    for n in root.iter("node"):
+        if n.get("clickable") != "true":
             continue
+        b = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", n.get("bounds", ""))
+        if not b:
+            continue
+        x1, y1, x2, y2 = map(int, b.groups())
         w, h = (x2 - x1) / scale, (y2 - y1) / scale
-        name = text or desc or "(no label)"
+        name = label(n)
         if w < MIN_DP or h < MIN_DP:
-            print("small  %dx%d dp  %s  at %d,%d" % (w, h, name[:40], (x1 + x2) // 2, (y1 + y2) // 2))
+            print("small  %dx%d dp  %s  at %d,%d" % (w, h, (name or "(no label)")[:40], (x1 + x2) // 2, (y1 + y2) // 2))
             found += 1
-        if not text and not desc:
-            print("nolabel  %dx%d dp  %s  at %d,%d" % (w, h, cls.rsplit(".", 1)[-1], (x1 + x2) // 2, (y1 + y2) // 2))
+        if not name:
+            print("nolabel  %dx%d dp  %s  at %d,%d" % (w, h, n.get("class", "").rsplit(".", 1)[-1], (x1 + x2) // 2, (y1 + y2) // 2))
             found += 1
     print("%d finding(s)" % found)
 
