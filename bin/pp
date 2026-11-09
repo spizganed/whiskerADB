@@ -147,7 +147,9 @@ case "$cmd" in
             # The watchdog runs on the phone, so no adb traffic keeps the phone awake. PP_IDLE=0: no watchdog.
             idle=${PP_IDLE:-60}
             if [ "$idle" -gt 0 ]; then
-              adb shell "rm -f /data/local/tmp/pp-asleep; date +%s > /data/local/tmp/pp-last; nohup sh -c 'echo \$\$ > /data/local/tmp/pp-idle.pid; while sleep 10; do last=\$(cat /data/local/tmp/pp-last 2>/dev/null || echo 0); now=\$(date +%s); if [ \$((now - last)) -gt $idle ] && [ ! -e /data/local/tmp/pp-asleep ]; then cmd power sleep --display-id $d >/dev/null 2>&1; : > /data/local/tmp/pp-asleep; fi; done' >/dev/null 2>&1 &"
+              # One watchdog only: end every older one first (each start used to leave one behind). The loop ends when its display is gone:
+              # `cmd power sleep` for an id that no longer exists put the whole phone to sleep (the screen locked by itself).
+              adb shell "pkill -f pp-idle.pid; rm -f /data/local/tmp/pp-asleep; date +%s > /data/local/tmp/pp-last; nohup sh -c 'echo \$\$ > /data/local/tmp/pp-idle.pid; while sleep 10; do cmd display get-displays | grep -q \"Display id $d:\" || exit 0; last=\$(cat /data/local/tmp/pp-last 2>/dev/null || echo 0); now=\$(date +%s); if [ \$((now - last)) -gt $idle ] && [ ! -e /data/local/tmp/pp-asleep ]; then cmd power sleep --display-id $d >/dev/null 2>&1; : > /data/local/tmp/pp-asleep; fi; done' >/dev/null 2>&1 &"
             fi
             echo "display $d"; exit 0
           fi
@@ -159,11 +161,12 @@ case "$cmd" in
         [ -s "$OUT/locked.pid" ] && kill "$(cat "$OUT/locked.pid")" 2>/dev/null
         # Without a terminal the device side does not end with adb: end it by name. The virtual device and its display go with it.
         adb shell pkill -f LockedDisplay 2>/dev/null
-        adb shell 'kill $(cat /data/local/tmp/pp-idle.pid) 2>/dev/null; rm -f /data/local/tmp/pp-idle.pid /data/local/tmp/pp-asleep /data/local/tmp/pp-last' 2>/dev/null
+        adb shell 'pkill -f pp-idle.pid 2>/dev/null; rm -f /data/local/tmp/pp-idle.pid /data/local/tmp/pp-asleep /data/local/tmp/pp-last' 2>/dev/null
         rm -f "$OUT/locked.pid"
         adb shell settings delete global overlay_display_devices >/dev/null
         rm -f "$OUT/display" "$OUT/display.sf" "$OUT/hidden.pid" ;;
       sleep) [ -n "$DISP" ] || { echo "pp: no display is on" >&2; exit 1; }
+        adb shell cmd display get-displays | command grep -q "Display id $DISP:" || { echo "pp: display $DISP is gone: not sleeping (it would sleep the phone)" >&2; exit 1; }
         adb shell "cmd power sleep --display-id $DISP >/dev/null 2>&1; : > /data/local/tmp/pp-asleep" ;;
       wake) [ -n "$DISP" ] || { echo "pp: no display is on" >&2; exit 1; }
         adb shell "date +%s > /data/local/tmp/pp-last; rm -f /data/local/tmp/pp-asleep; input -d $DISP keyevent KEYCODE_WAKEUP" ;;
