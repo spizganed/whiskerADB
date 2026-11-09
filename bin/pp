@@ -211,7 +211,7 @@ case "$cmd" in
     if [ -n "$DISP" ]; then
       adb exec-out screencap -d "$SF" -p > "$f" || exit 1
       # A sleeping display gives a black picture (a few KB). Wake it, let it draw, and take the picture again.
-      if [ "$(wc -c < "$f")" -lt 12000 ]; then
+      if [ "$(wc -c < "$f")" -lt 30000 ]; then
         adb shell "rm -f /data/local/tmp/pp-asleep; input -d $DISP keyevent KEYCODE_WAKEUP"; sleep 1.2
         adb exec-out screencap -d "$SF" -p > "$f"
       fi
