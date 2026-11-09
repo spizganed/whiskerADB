@@ -3,7 +3,8 @@
 #   pp front                 exit 0 when the app is in front
 #   pp open                  bring the app forward
 #   pp texts                 list the visible texts
-#   pp tap "label"           tap a node by its text or description (only when the app is in front)
+#   pp tap "label" [n]       tap a node by its text or description; n picks the n-th node with that label (only when the app is in front)
+#   pp tapxy X Y             tap a position on the screen in use (the second display too)
 #   pp wait "text" [secs]    wait until a text shows (default 20 s)
 #   pp go "label" "text" [s] tap, then wait for a text
 #   pp type "text"           put text into the focused field through the clipboard (no keyboard glitches)
@@ -90,6 +91,10 @@ case "$cmd" in
       adb shell am start --display "$DISP" -n "$act" >/dev/null
     else adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; fi ;;
   display)
+    # overlay, hidden and locked reuse the display that is on: a second start would make a new display with a new id.
+    case "$1" in overlay|hidden|locked)
+      if [ -n "$DISP" ] && adb shell cmd display get-displays | command grep -q "Display id $DISP:"; then echo "display $DISP (already on)"; exit 0; fi ;;
+    esac
     case "$1" in
       overlay)
         adb shell settings put global overlay_display_devices "${2:-1080x2400/420}"
@@ -167,9 +172,14 @@ case "$cmd" in
   texts) dump | python3 "$HERE/../lib/find.py" texts ;;
   tap)
     need_front
-    xy=$(dump | python3 "$HERE/../lib/find.py" tap "$1")
-    [ -n "$xy" ] || { echo "pp: no node: $1" >&2; exit 2; }
+    xy=$(dump | python3 "$HERE/../lib/find.py" tap "$1" "${2:-1}")
+    [ -n "$xy" ] || { echo "pp: no node: $1${2:+ (number $2)}" >&2; exit 2; }
     adb shell $INPUT tap $xy ;;
+  tapxy)
+    # A tap by position on the screen in use. Use it instead of a raw adb input: the id of the second display changes at each start.
+    need_front
+    [ -n "$2" ] || { echo "pp: tapxy X Y" >&2; exit 1; }
+    adb shell $INPUT tap "$1" "$2" ;;
   wait)
     end=$((SECONDS + ${2:-20}))
     while [ $SECONDS -lt $end ]; do
@@ -198,7 +208,15 @@ case "$cmd" in
     need_front
     f=${1:-$OUT/shot.png}
     # A sleeping screen keeps the last frame: screencap then shows an old picture. Wake it and let it draw.
-    if [ -n "$DISP" ]; then adb exec-out screencap -d "$SF" -p > "$f" && echo "$f"; exit; fi
+    if [ -n "$DISP" ]; then
+      adb exec-out screencap -d "$SF" -p > "$f" || exit 1
+      # A sleeping display gives a black picture (a few KB). Wake it, let it draw, and take the picture again.
+      if [ "$(wc -c < "$f")" -lt 12000 ]; then
+        adb shell "rm -f /data/local/tmp/pp-asleep; input -d $DISP keyevent KEYCODE_WAKEUP"; sleep 1.2
+        adb exec-out screencap -d "$SF" -p > "$f"
+      fi
+      echo "$f"; exit
+    fi
     adb shell input keyevent 224    # KEYCODE_WAKEUP
     sleep 0.6
     adb exec-out screencap -p > "$f" && echo "$f" ;;
