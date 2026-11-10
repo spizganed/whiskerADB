@@ -108,7 +108,7 @@ It changes the dark mode and the font scale of the **whole phone** for about 10 
 
 ### `pp perf`: motion as numbers
 
-`pp perf start` resets the frame stats of the app (`dumpsys gfxinfo`). Do the action. `pp perf show` prints the frame count, the slow frames and the frame times. It also prints the app's log lines with the tag `Perf`, so an app can log its own counts (for example how often a list row redraws). A debug build is slower than a release build: compare a build with a build of the same type.
+`pp perf start` resets the frame stats of the app (`dumpsys gfxinfo`). Do the action. `pp perf show` prints the frame count, the slow frames and the frame times. It also prints the app's log lines with the tag `Perf`, so an app can log its own counts (for example how often a list row redraws). `start` also sets the main log buffer to 8 MB (until the next phone start): some phones keep only 20 s of log. A debug build is slower than a release build: compare a build with a build of the same type.
 
 ### `pp compare`: did the screen change?
 

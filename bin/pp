@@ -251,6 +251,8 @@ case "$cmd" in
     case "${1:-show}" in
       start)
         adb shell dumpsys gfxinfo "$PKG" reset >/dev/null
+        # A small log buffer (256 KiB on some phones) holds only seconds: make the main buffer 8 MB until the next phone start.
+        adb logcat -b main -G 8M >/dev/null 2>&1
         adb shell "date '+%m-%d %H:%M:%S.000'" | tr -d '\r' > "$OUT/perf.since"
         echo "pp: frame stats reset" ;;
       show)
