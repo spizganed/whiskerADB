@@ -127,7 +127,7 @@ A good loop for an agent: build, install, `pp open`, `pp go ...` through the flo
 - **Typing.** `pp type` uses `termux-clipboard-set` (Termux:API) when it exists. Without it, `pp` falls back to `adb shell input text`, which can drop characters. Tap the text field itself, not its hint text, before `type`: a tap on the hint can leave the field without focus.
 - **Floating bubbles.** An Android chat bubble of another app lies over your app and takes a tap at its spot. Move the bubble, or tap by coordinates away from it.
 - **Several devices.** Set `ANDROID_SERIAL` to the device you want. `pp` passes it to `adb`.
-- **Where files go.** Screenshots go to `$PP_OUT`. The default is `$TMPDIR/pp`, or `/tmp/pp`.
+- **Where files go.** Screenshots go to `$PP_OUT`. The default is `$TMPDIR/pp`, or `/tmp/pp`. The screen dump on the phone goes to `$PP_PHONE_DIR`, by default `/sdcard/Download/ADB`, not to the root of the shared storage.
 - **Speed.** Each `tap`, `texts` and `wait` poll runs `uiautomator dump`. This takes a moment, so do not poll in a tight loop.
 - **Exact labels.** `tap` needs the full text. Run `pp texts` first to see the exact label.
 - **Webviews and games.** Nodes with no text and no description cannot be found by label. Use `pp swipe` and `adb shell input tap x y` there.

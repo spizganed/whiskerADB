@@ -30,6 +30,8 @@ PKG=${PP_PKG:?pp: set PP_PKG to the app id, for example PP_PKG=com.example.app}
 HERE=$(dirname "$(readlink -f "$0")")
 "$HERE/adb-ready" || exit 1
 OUT=${PP_OUT:-${TMPDIR:-/tmp}/pp}
+# Files that pp leaves on the phone (the screen dump) go here, not to the root of the shared storage.
+PHONE_DIR=${PP_PHONE_DIR:-/sdcard/Download/ADB}
 mkdir -p "$OUT"
 
 # The second display: its id is in $OUT/display, and the id of SurfaceFlinger (for screencap) in $OUT/display.sf.
@@ -68,15 +70,15 @@ scroll() {
   if [ "$1" = up ]; then adb shell $INPUT swipe $x $hi $x $lo 300; else adb shell $INPUT swipe $x $lo $x $hi 300; fi
 }
 dump() {
-  adb shell rm -f /sdcard/pp.xml
+  adb shell "mkdir -p $PHONE_DIR; rm -f $PHONE_DIR/pp.xml"
   if [ -n "$DISP" ]; then
     # --display alone can return the phone screen. --windows lists every display: keep the block of ours.
-    adb shell uiautomator dump --windows /sdcard/pp.xml >/dev/null 2>&1
-    xml=$(adb shell cat /sdcard/pp.xml | python3 -c 'import re,sys; m = re.search(r"<display id=\"%s\">(.*?)</display>" % sys.argv[1], sys.stdin.read(), re.S); print(m.group(1) if m else "")' "$DISP")
+    adb shell uiautomator dump --windows "$PHONE_DIR/pp.xml" >/dev/null 2>&1
+    xml=$(adb shell cat "$PHONE_DIR/pp.xml" | python3 -c 'import re,sys; m = re.search(r"<display id=\"%s\">(.*?)</display>" % sys.argv[1], sys.stdin.read(), re.S); print(m.group(1) if m else "")' "$DISP")
     printf '%s' "$xml" | command grep -q "package=\"$PKG\"" || { echo "pp: display $DISP shows no node of $PKG" >&2; return 1; }
   else
-    adb shell uiautomator dump /sdcard/pp.xml >/dev/null 2>&1
-    xml=$(adb shell cat /sdcard/pp.xml)
+    adb shell uiautomator dump "$PHONE_DIR/pp.xml" >/dev/null 2>&1
+    xml=$(adb shell cat "$PHONE_DIR/pp.xml")
   fi
   printf '%s' "$xml"
 }
