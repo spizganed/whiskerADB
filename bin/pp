@@ -23,6 +23,8 @@
 #                            The display sleeps after PP_IDLE seconds (default 60) with no pp command, so the phone can doze; the next pp command wakes it.
 #                            PP_IDLE=0 keeps it awake. pp display sleep|wake does it by hand.
 #   pp locked                exit 0 when the phone is locked (the lock screen shows)
+#   pp perf start|show       start: reset the frame stats of the app. show: frames, slow frames and frame times since start,
+#                            plus the app's own log lines with the tag Perf (for example redraw counts of a debug build)
 #   pp states [file]         shot of the screen in light, dark and 200% text, joined in one image; restores the settings
 # With a display on, open, texts, tap, type, key, shot and swipe act on that display, not on the phone screen.
 # Set PP_PKG to the app id (required). Every input command refuses to act when another app is in front.
@@ -245,6 +247,19 @@ case "$cmd" in
     dump | python3 "$HERE/../lib/ui.py" audit "${d:-420}" ;;
   init) python3 "$HERE/../lib/init.py" ;;
   compare) python3 "$HERE/../lib/ui.py" compare "$1" "$2" ;;
+  perf)
+    case "${1:-show}" in
+      start)
+        adb shell dumpsys gfxinfo "$PKG" reset >/dev/null
+        adb shell "date '+%m-%d %H:%M:%S.000'" | tr -d '\r' > "$OUT/perf.since"
+        echo "pp: frame stats reset" ;;
+      show)
+        adb shell dumpsys gfxinfo "$PKG" | command grep -E '^(Total frames rendered|Janky frames|[0-9]+th percentile|Number (Slow|Missed|High|Frame deadline))' | head -14
+        since=$(cat "$OUT/perf.since" 2>/dev/null)
+        pid=$(adb shell pidof "$PKG" | tr -d '\r')
+        [ -n "$pid" ] && adb logcat -d -v brief ${since:+-T "$since"} --pid="$pid" -s Perf:* | command grep -v '^-----' | tail -40 ;;
+      *) echo "pp perf start|show" >&2; exit 2 ;;
+    esac ;;
   states)
     need_front
     f=${1:-$OUT/states.png}

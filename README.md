@@ -81,6 +81,7 @@ pp shot                          # take a screenshot; prints the file path
 | `pp audit` | List touch targets under 48 dp and controls with no label. |
 | `pp compare a.png b.png` | Print the screen regions that differ between two screenshots. |
 | `pp display overlay\|hidden\|locked\|off` | Work on a second display, so the person keeps the phone screen. See below. |
+| `pp perf start\|show` | Frame stats of the app since `start`: frames, slow frames, frame times. Also the app's log lines with the tag `Perf`. |
 | `pp states [file]` | One image of the screen in light mode, dark mode and 200% text. |
 | `pp init` | Add a short `pp` block to `AGENTS.md` and `CLAUDE.md` in the current folder, so an agent knows the tool. |
 
@@ -104,6 +105,10 @@ After `pp display overlay` or `pp display hidden`, `open`, `texts`, `tap`, `type
 ### `pp states`: light, dark and large text in one image
 
 It changes the dark mode and the font scale of the **whole phone** for about 10 seconds, takes three screenshots and joins them. Both settings come back when it ends, also after an error. Run it only when you are not using the phone.
+
+### `pp perf`: motion as numbers
+
+`pp perf start` resets the frame stats of the app (`dumpsys gfxinfo`). Do the action. `pp perf show` prints the frame count, the slow frames and the frame times. It also prints the app's log lines with the tag `Perf`, so an app can log its own counts (for example how often a list row redraws). A debug build is slower than a release build: compare a build with a build of the same type.
 
 ### `pp compare`: did the screen change?
 
