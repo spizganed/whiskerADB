@@ -29,6 +29,8 @@
 #   pp states [file]         shot of the screen in light, dark and 200% text, joined in one image; restores the settings
 # With a display on, open, texts, tap, type, key, shot and swipe act on that display, not on the phone screen.
 # Set PP_PKG to the app id (required). Every input command refuses to act when another app is in front.
+# pp keeps auto-rotate as it was at its first command, and logs any change to $PP_OUT/rotation.log.
+# PP_HOME=1 lets input commands act on the home screen too (widgets, and the tiles in the shade over it). Phone screen only.
 PKG=${PP_PKG:?pp: set PP_PKG to the app id, for example PP_PKG=com.example.app}
 HERE=$(dirname "$(readlink -f "$0")")
 "$HERE/adb-ready" || exit 1
@@ -47,7 +49,13 @@ if [ -n "$DISP" ] && [ "$1" != display ]; then
   woke=$(adb shell "date +%s > /data/local/tmp/pp-last; if [ -e /data/local/tmp/pp-asleep ]; then rm -f /data/local/tmp/pp-asleep; input -d $DISP keyevent KEYCODE_WAKEUP; echo woke; fi" | tr -d '\r')
   [ "$woke" = woke ] && sleep 1
 fi
+# PP_HOME=1: the home screen counts as in front too, for widget and tile work. The home app comes from the HOME intent.
+home_pkg() { adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1 | tr -d '\r' | cut -d/ -f1; }
 front() {
+  if [ "${PP_HOME:-}" = 1 ] && [ -z "$DISP" ]; then
+    local home; home=$(home_pkg)
+    adb shell dumpsys activity activities | command grep -m1 "topResumedActivity" | command grep -qE "($PKG|$home)/" && return
+  fi
   if [ -n "$DISP" ]; then
     # The top activity of that display: the lines between "Display #N" and the next display.
     adb shell dumpsys activity activities | awk -v d="$DISP" '/^Display #/ { on = ($2 == "#" d) } on && /topResumedActivity/ { print; exit }' | command grep -q "$PKG/"
@@ -85,6 +93,19 @@ dump() {
   fi
   printf '%s' "$xml"
 }
+
+# Rotation guard: something on some phones turns auto-rotate on during a test session (seen on Android 17; the cause is
+# not known). pp notes the value on its first command and puts it back after each command, and logs the change.
+ROT_FILE="$OUT/rotation"
+[ -s "$ROT_FILE" ] || adb shell settings get system accelerometer_rotation | tr -d '\r' > "$ROT_FILE"
+guard_rotation() {
+  local want now; want=$(cat "$ROT_FILE"); now=$(adb shell settings get system accelerometer_rotation | tr -d '\r')
+  [ "$now" = "$want" ] && return
+  adb shell settings put system accelerometer_rotation "$want"
+  echo "$(date '+%F %T') after 'pp $PP_CMD_LINE': auto-rotate $now -> $want (restored)" >> "$OUT/rotation.log"
+}
+PP_CMD_LINE="$*"
+trap guard_rotation EXIT
 
 cmd=$1; shift
 case "$cmd" in

@@ -88,6 +88,10 @@ pp shot                          # take a screenshot; prints the file path
 
 Exit codes: `0` ok, `2` no matching node, `3` wait timed out, `10` your app is not in front.
 
+### Widgets and tiles: `PP_HOME=1`
+
+A widget lives on the home screen, and a quick settings tile in the shade over it. With `PP_HOME=1`, the front check also passes when the home app (the one that answers the HOME intent) is in front. Every other app still stops `pp`. Use it only for widget and tile work, on the phone screen: a second display has no home screen. Open the shade with `pp swipe` from the top edge.
+
 ### `pp audit`: accessibility without images
 
 It reads the UI tree and prints one line for each problem (`small` or `nolabel`, with the size and the position), then a count. A problem is a clickable element smaller than 48 dp, or a control with no text or description (a screen reader cannot name it). Fix the app, run it again, and the list gets shorter.
@@ -126,7 +130,7 @@ A good loop for an agent: build, install, `pp open`, `pp go ...` through the flo
 - Every input command (`tap`, `type`, `key`, `swipe`, `shot`, `audit`, `states`) checks the front app first. This is the whole point of the tool.
 - `pp` does not work around that check. If it stops, the person is using the phone: wait.
 - `pp states` changes phone-wide settings and restores them. Do not run it while someone uses the phone.
-- `pp` never rotates the screen.
+- `pp` never rotates the screen. It also guards auto-rotate: it notes the value at its first command, puts it back after each command, and logs a change to `$PP_OUT/rotation.log` with the command before it. Some phones turn auto-rotate on during a test session; the cause is not known yet. Delete `$PP_OUT/rotation` to take a new value.
 
 ## Good to know
 
