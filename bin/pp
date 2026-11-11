@@ -10,6 +10,7 @@
 #   pp type "text"           put text into the focused field through the clipboard (no keyboard glitches)
 #   pp key NAME              send a key: enter, back, del, paste
 #   pp shot [file]           screenshot to a file (default $PP_OUT/shot.png), prints the path
+#   pp hold "label" [n]      long press a node by its text or description
 #   pp swipe x1 y1 x2 y2     swipe, only when the app is in front
 #   pp scroll down|up        scroll the list most of one screen (down shows what is below)
 #   pp find "label" [n]      scroll down until a node with the label shows, at most n screens (default 8); then pp tap it
@@ -182,6 +183,12 @@ case "$cmd" in
     xy=$(dump | python3 "$HERE/../lib/find.py" tap "$1" "${2:-1}")
     [ -n "$xy" ] || { echo "pp: no node: $1${2:+ (number $2)}" >&2; exit 2; }
     adb shell $INPUT tap $xy ;;
+  hold)
+    # A long press on a node by its text or description (about 800 ms): a swipe that does not move.
+    need_front
+    xy=$(dump | python3 "$HERE/../lib/find.py" tap "$1" "${2:-1}")
+    [ -n "$xy" ] || { echo "pp: no node: $1${2:+ (number $2)}" >&2; exit 2; }
+    adb shell $INPUT swipe $xy $xy 800 ;;
   tapxy)
     # A tap by position on the screen in use. Use it instead of a raw adb input: the id of the second display changes at each start.
     need_front

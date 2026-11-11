@@ -53,6 +53,7 @@ pp open                          # bring the app to the front
 pp wait "Sign in" 10             # wait up to 10 s for the login screen
 pp tap "Email"                   # focus the field
 pp tap "Install" 3               # the third node with that label (a list of rows with one button each)
+pp hold "Message"                # long press (about 800 ms): opens a menu or an action
 pp tapxy 540 1200                # a position, on the screen pp uses (never a raw adb input: the id of the second display changes)
 pp type 'me@example.com'
 pp tap "Password"
